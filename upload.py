@@ -52,11 +52,14 @@ class AbstractFs(object):
 
     def ensure_mkdir(self, dn, prefix=''):
         path = ''
+        made = False
         for p in dn.split('/'):
             path = os.path.join(path, p)
             full_path = os.path.join(prefix, path)
             if not self.exists(full_path):
                 self.mkdir(full_path)
+                made = True
+        return made
 
 
 class LocalFs(AbstractFs):
@@ -300,8 +303,9 @@ def main():
                 dirpath = os.path.dirname(path)
                 if dirpath not in created:
                     created.add(dirpath)
-                    remote_fs.ensure_mkdir(dirpath, prefix=r['dir'])
-                    print('mkdir %s' % dirpath)
+                    made = remote_fs.ensure_mkdir(dirpath, prefix=r['dir'])
+                    if made:
+                        print('mkdir %s' % dirpath)
 
             print('Writing %s' % path)
             out_fn = os.path.join(r['dir'], path)

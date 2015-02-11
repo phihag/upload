@@ -254,7 +254,7 @@ def main():
 
     root_dir = (
         args.root_dir if args.root_dir is not None
-        else os.path.dirname(os.path.abspath(__file__)))
+        else search_root(os.getcwd()))
     config = read_config(root_dir)
     local_fs = LocalFs()
     local_files = gather_local_files(root_dir)

@@ -236,6 +236,19 @@ def gather_local_files(root_dir):
     return sorted(res)
 
 
+def search_root(starting_point):
+    d = os.path.normpath(starting_point)
+    while True:
+        if os.path.exists(os.path.join(d, '.upload_config.json')):
+            return d
+        new_d = os.path.dirname(d)
+        if d == new_d:
+            raise ValueError(
+                'Could not find root directory (started from %s)' %
+                os.path.normpath(starting_point))
+        d = new_d
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(

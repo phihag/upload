@@ -223,11 +223,11 @@ def gather_local_files(root_dir):
             else:
                 to_add = res
 
-            # TODO line should be relative to root_dir
-            if os.path.isfile(line):
-                to_add.add(line)
+            local_fn = os.path.join(root_dir, line)
+            if os.path.isfile(local_fn):
+                to_add.add(os.path.normpath(local_fn))
             else:
-                for cwd, _dirs, files in os.walk(line):
+                for cwd, _dirs, files in os.walk(local_fn):
                     for f in files:
                         to_add.add(os.path.normpath(os.path.join(cwd, f)))
 
@@ -236,7 +236,7 @@ def gather_local_files(root_dir):
             'Invalid configuration: blacklisted files (%s) in upload list' %
             ', '.join(sorted(res & never)))
 
-    return sorted(res)
+    return sorted(os.path.relpath(p, root_dir) for p in res)
 
 
 def search_root(starting_point):
@@ -261,12 +261,17 @@ def main():
         '-r', '--root-dir', metavar='DIRECTORY',
         help='Root directory to sync')
     parser.add_argument(
+        '-p', '--print-status', action='store_true',
+        help='Print the synchronization status (implies --dry-run)')
+    parser.add_argument(
         '-d', '--dry-run',
         action='store_true',
         help=(
             'Do not actually change anything; just print out '
             'what would be changed.'))
     args = parser.parse_args()
+    if args.print_status:
+        args.dry_run = True
 
     root_dir = (
         args.root_dir if args.root_dir is not None
@@ -274,7 +279,7 @@ def main():
     config = read_config(root_dir)
     local_fs = LocalFs()
     local_files = gather_local_files(root_dir)
-    local_hashes = LocalFs().bulk_sha512(local_files)
+    local_hashes = LocalFs().bulk_sha512(local_files, root_dir)
 
     if args.list_local:
         for l in local_files:
@@ -294,12 +299,21 @@ def main():
             remote_fs = SFTPFs(client)
         remote_hashes = remote_fs.bulk_sha512(local_files, r['dir'])
         created = set()
+        maxlen = max(len(f) for f in local_files)
         for path, h in sorted(local_hashes.items()):
             assert path in remote_hashes
+            if args.print_status:
+                if remote_hashes[path] == h:
+                    status = 'identical'
+                elif remote_hashes[path]:
+                    status = 'different'
+                else:
+                    status = 'missing'
+                print(('%%-%ds %%s' % maxlen) % (path, status))
             if remote_hashes[path] == h:
                 continue
 
-            if not remote_hashes[path]:
+            if not args.dry_run and not remote_hashes[path]:
                 dirpath = os.path.dirname(path)
                 if dirpath not in created:
                     created.add(dirpath)
@@ -307,11 +321,14 @@ def main():
                     if made:
                         print('mkdir %s' % dirpath)
 
-            print('Writing %s' % path)
-            out_fn = os.path.join(r['dir'], path)
-            with local_fs.open(path, 'rb') as readf, \
-                    remote_fs.open(out_fn, 'wb') as writef:
-                shutil.copyfileobj(readf, writef)
+            if not args.print_status:
+                print('Writing %s' % path)
+            if not args.dry_run:
+                out_fn = os.path.join(r['dir'], path)
+                local_fn = os.path.join(root_dir, path)
+                with local_fs.open(local_fn, 'rb') as readf, \
+                        remote_fs.open(out_fn, 'wb') as writef:
+                    shutil.copyfileobj(readf, writef)
 
     return 0
 

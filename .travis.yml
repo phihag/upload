@@ -1,0 +1,14 @@
+language: python
+python:
+  - "2.7"
+  - "3.2"
+  - "3.3"
+  - "3.4"
+install:
+  - "pip install flake8 --use-mirrors"
+script:
+  - "make test"
+notifications:
+  email:
+    - phihag@phihag.de
+    - dfmogk@gmail.com

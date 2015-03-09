@@ -207,34 +207,70 @@ def read_config(root_dir):
         return json.load(configf)
 
 
-def gather_local_files(root_dir):
-    root_dir = os.path.normpath(root_dir)
-    public_fn = os.path.join(root_dir, '.public')
-    res = set()
-    never = set()
+def _parse_publicf(cwd, to_include, to_exclude):
+    public_fn = os.path.join(cwd, '.public')
+    if not os.path.exists(public_fn):
+        return
+
     with io.open(public_fn, encoding='utf-8') as publicf:
         for line in publicf:
+
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
+
             if line.startswith('!'):
-                line = line[len('!'):]
-                to_add = never
+                fn = line[len('!'):]
+                dest = to_exclude
             else:
-                to_add = res
+                fn = line
+                dest = to_include
 
-            local_fn = os.path.join(root_dir, line)
-            if os.path.isfile(local_fn):
-                to_add.add(os.path.normpath(local_fn))
+            if fn == '.':
+                dirp = cwd
+                dest[dirp] = '*'
             else:
-                for cwd, _dirs, files in os.walk(local_fn):
-                    for f in files:
-                        to_add.add(os.path.normpath(os.path.join(cwd, f)))
+                dirn, basename = os.path.split(fn)
+                dirp = os.path.normpath(os.path.join(cwd, dirn))
+                if dirp not in dest:
+                    dest[dirp] = set()
 
-    if res & never:
-        raise Exception(
-            'Invalid configuration: blacklisted files (%s) in upload list' %
-            ', '.join(sorted(res & never)))
+                if dest[dirp] != '*':
+                    dest[dirp].add(basename)
+
+
+def gather_local_files(root_dir):
+    res = []
+    root_dir = os.path.normpath(root_dir)
+    to_include = {}
+    to_exclude = {}
+    for cwd, dirs, files in os.walk(root_dir, topdown=True):
+        _parse_publicf(cwd, to_include, to_exclude)
+
+        local_to_exclude = to_exclude.get(cwd)
+        if local_to_exclude == '*':
+            dirs[:] = []
+            continue
+
+        if local_to_exclude:
+            dirs[:] = [d for d in dirs if d not in local_to_exclude]
+            files = [f for f in files if f not in local_to_exclude]
+
+        local_to_include = to_include.get(cwd)
+        if local_to_include == '*':
+            for f in files:
+                res.append(os.path.join(cwd, f))
+            for d in dirs:
+                dpath = os.path.join(cwd, d)
+                to_include.setdefault(dpath, '*')
+        elif local_to_include:
+            for f in files:
+                if f in local_to_include:
+                    res.append(os.path.join(cwd, f))
+            for d in dirs:
+                if d in local_to_include:
+                    dpath = os.path.join(cwd, d)
+                    to_include[dpath] = '*'
 
     return sorted(os.path.relpath(p, root_dir) for p in res)
 

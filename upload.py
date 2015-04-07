@@ -2,7 +2,9 @@
 
 import argparse
 import base64
+import collections
 import errno
+import getpass
 import hashlib
 import hmac
 import io
@@ -23,6 +25,15 @@ except ImportError:
 
 
 import paramiko  # If this fails:  sudo apt-get install -y python3-paramiko
+
+
+CONFIG_BASENAME = '.upload_config.json'
+PUBLIC_BASENAME = '.public'
+
+
+class RootNotFoundError(BaseException):
+    def __init__(self, message):
+        self.message = message
 
 
 class AbstractFs(object):
@@ -202,13 +213,50 @@ def _file_sha512(f):
 
 
 def read_config(root_dir):
-    config_fn = os.path.join(root_dir, '.upload_config.json')
+    config_fn = os.path.join(root_dir, CONFIG_BASENAME)
     with io.open(config_fn, 'r', encoding='utf-8') as configf:
         return json.load(configf)
 
 
+def write_example_config(root_dir):
+    # Search config
+    if root_dir == '.':
+        root_dir = ''
+    config_fn = os.path.join(root_dir, CONFIG_BASENAME)
+    if os.path.exists(config_fn):
+        raise Exception('Config file already present; edit %s' % config_fn)
+    example_data = {
+        'remotes': [collections.OrderedDict([
+            ('host', 'example.com'),
+            ('port', 22),
+            ('dir', '/hosts/example.com/'),
+            ('username', getpass.getuser()),
+            ('php_baseurl', 'http://example.com/'),
+        ])]
+    }
+    with io.open(config_fn, 'w', encoding='utf-8') as config_f:
+        json.dump(example_data, config_f, indent=2)
+    print('Wrote example server config file to %s' % config_fn)
+
+    public_fn = os.path.join(root_dir, PUBLIC_BASENAME)
+    if os.path.exists(public_fn):
+        print('Example %s file is already present.' % PUBLIC_BASENAME)
+    else:
+        with io.open(public_fn, 'w', encoding='utf-8') as public_f:
+            public_f.write('''# List the directories you want to be uploaded
+# You can also place .public files in the directories themselves
+
+# 2014/
+
+# Never upload anything in the ssl subdirectory
+!ssl/
+
+''')
+        print('Wrote example upload config file to %s' % public_fn)
+
+
 def _parse_publicf(cwd, to_include, to_exclude):
-    public_fn = os.path.join(cwd, '.public')
+    public_fn = os.path.join(cwd, PUBLIC_BASENAME)
     if not os.path.exists(public_fn):
         return
 
@@ -278,12 +326,12 @@ def gather_local_files(root_dir):
 def search_root(starting_point):
     d = os.path.normpath(starting_point)
     while True:
-        if os.path.exists(os.path.join(d, '.upload_config.json')):
+        if os.path.exists(os.path.join(d, CONFIG_BASENAME)):
             return d
         new_d = os.path.dirname(d)
         if d == new_d:
-            raise ValueError(
-                'Could not find root directory (started from %s)' %
+            raise RootNotFoundError(
+                'Could not find root directory! (started from %s)' %
                 os.path.normpath(starting_point))
         d = new_d
 
@@ -305,13 +353,34 @@ def main():
         help=(
             'Do not actually change anything; just print out '
             'what would be changed.'))
+    parser.add_argument(
+        '-e', '--example-config', action='store_true',
+        help='Write an example config file for the upload into the current '
+             'directory and exit.')
+    parser.add_argument(
+        '--print-root', action='store_true',
+        help='Print out the root directory of this project and exit')
+
     args = parser.parse_args()
     if args.print_status:
         args.dry_run = True
 
-    root_dir = (
-        args.root_dir if args.root_dir is not None
-        else search_root(os.getcwd()))
+    if args.example_config:
+        write_example_config('.')
+        return 0
+
+    try:
+        root_dir = (
+            args.root_dir if args.root_dir is not None
+            else search_root(os.getcwd()))
+    except RootNotFoundError as rnfe:
+        sys.stderr.write('ERROR: %s\n' % rnfe.message)
+        return 2
+
+    if args.print_root:
+        print(root_dir)
+        return 0
+
     config = read_config(root_dir)
     local_fs = LocalFs()
     local_files = gather_local_files(root_dir)

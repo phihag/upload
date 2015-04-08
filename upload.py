@@ -243,13 +243,13 @@ def write_example_config(root_dir):
         print('Example %s file is already present.' % PUBLIC_BASENAME)
     else:
         with io.open(public_fn, 'w', encoding='utf-8') as public_f:
-            public_f.write('''# List the directories you want to be uploaded
+            public_f.write('''# List files and directories you want to be uploaded
 # You can also place .public files in the directories themselves
 
-# 2014/
+# 2014
 
 # Never upload anything in the ssl subdirectory
-!ssl/
+!ssl
 
 ''')
         print('Wrote example upload config file to %s' % public_fn)
@@ -404,7 +404,7 @@ def main():
             remote_fs = SFTPFs(client)
         remote_hashes = remote_fs.bulk_sha512(local_files, r['dir'])
         created = set()
-        maxlen = max(len(f) for f in local_files)
+        maxlen = max(len(f) for f in local_files) if local_files else 0
         for path, h in sorted(local_hashes.items()):
             assert path in remote_hashes
             if args.print_status:

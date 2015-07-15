@@ -134,8 +134,8 @@ foreach ($files as $f) {
 echo json_encode($res);
 ''' % (key, _encode_php(json.dumps(files)), _encode_php(prefix))
 
-        php_fn = '.upload_checksums-%s.php' % (
-            hashlib.sha512(os.urandom(64)).hexdigest())
+        php_fn = '.upload-%s.php' % (
+            hashlib.sha512(os.urandom(64)).hexdigest()[:64])
         php_path = os.path.join(self.php_basepath, php_fn)
         try:
             with self.open(php_path, 'wb') as phpf:

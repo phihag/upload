@@ -243,7 +243,8 @@ def write_example_config(root_dir):
         print('Example %s file is already present.' % PUBLIC_BASENAME)
     else:
         with io.open(public_fn, 'w', encoding='utf-8') as public_f:
-            public_f.write('''# List files and directories you want to be uploaded
+            public_f.write('''# Configuration file for https://github.com/phihag/upload/
+# List files and directories you want to be uploaded
 # You can also place .public files in the directories themselves
 
 # 2014

@@ -212,6 +212,13 @@ def _file_sha512(f):
         return hashlib.sha512(content).hexdigest()
 
 
+def filter_name(filter_rex_str, local_files):
+    filter_rex = re.compile(filter_rex_str)
+    return [
+        lf for lf in local_files if filter_rex.search(lf)
+    ]
+
+
 def read_config(root_dir):
     config_fn = os.path.join(root_dir, CONFIG_BASENAME)
     with io.open(config_fn, 'r', encoding='utf-8') as configf:
@@ -361,6 +368,9 @@ def main():
     parser.add_argument(
         '--print-root', action='store_true',
         help='Print out the root directory of this project and exit')
+    parser.add_argument(
+        '-f', '--filter', metavar='REGEXP', dest='filter',
+        help='Only look at the files matching the regular expression')
 
     args = parser.parse_args()
     if args.print_status:
@@ -385,6 +395,8 @@ def main():
     config = read_config(root_dir)
     local_fs = LocalFs()
     local_files = gather_local_files(root_dir)
+    if args.filter is not None:
+        local_files = filter_name(args.filter, local_files)
     local_hashes = LocalFs().bulk_sha512(local_files, root_dir)
 
     if args.list_local:

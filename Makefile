@@ -1,5 +1,7 @@
-test:
-	flake8 .
+test: lint
 	python3 -m unittest discover test
 
-.PHONY: test
+lint:
+	flake8 .
+
+.PHONY: lint test

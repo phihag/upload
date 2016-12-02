@@ -154,7 +154,10 @@ echo json_encode($res);
 
 def _ssh_setup_host_keys(client, hostname, port):
     full_hostname, hostkeys = _ssh_get_host_keys(hostname, port)
-    client._host_keys = {full_hostname: hostkeys}
+
+    client_host_keys = client.get_host_keys()
+    for keyid, key in hostkeys.items():
+        client_host_keys.add(hostname, keyid, key)
 
 
 def _ssh_match_hostname(hn_line, hostname):

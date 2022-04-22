@@ -179,8 +179,10 @@ def _ssh_match_hostname(hn_line, hostname):
 
 def _ssh_get_host_keys(hostname, port):
     hostkeys_fn = os.path.expanduser('~/.ssh/known_hosts')
-    if port != 22:
-        hostname = '[%s]:%d' % (hostname, port)
+    if port == 22:
+        full_hostname = hostname
+    else:
+        full_hostname = '[%s]:%d' % (hostname, port)
     hostkeys = {}
 
     def _add_key(keytype, keydata):
@@ -199,15 +201,15 @@ def _ssh_get_host_keys(hostname, port):
     with io.open(hostkeys_fn, encoding='ascii') as hkf:
         for line in hkf:
             hn, _, data = line.partition(' ')
-            if _ssh_match_hostname(hn, hostname):
+            if _ssh_match_hostname(hn, hostname) or _ssh_match_hostname(hn, hostname):
                 keytype, keydata = data.split()[:2]
                 _add_key(keytype, keydata)
 
     if not hostkeys:
         raise KeyError(
-            'Could not find key for %s in %s' % (hostname, hostkeys_fn))
+            'Could not find key for %s in %s' % (full_hostname, hostkeys_fn))
 
-    return hostname, hostkeys
+    return full_hostname, hostkeys
 
 
 def _file_sha512(f):

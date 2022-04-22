@@ -375,6 +375,9 @@ def main():
     parser.add_argument(
         '-f', '--filter', metavar='REGEXP', dest='filter',
         help='Only look at the files matching the regular expression')
+    parser.add_argument(
+        '-v', '--verbose', action='store_true',
+        help='Output more logging information')
 
     args = parser.parse_args()
     if args.print_status:
@@ -395,6 +398,9 @@ def main():
     if args.print_root:
         print(root_dir)
         return 0
+
+    if args.verbose:
+        paramiko.common.logging.basicConfig(level=paramiko.common.DEBUG)
 
     config = read_config(root_dir)
     local_fs = LocalFs()

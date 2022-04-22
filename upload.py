@@ -421,7 +421,8 @@ def main():
         client = paramiko.SSHClient()
         _ssh_setup_host_keys(client, r['host'], port)
         client.connect(
-            r['host'], port=port, username=r.get('username'))
+            r['host'], port=port, username=r.get('username'),
+            disabled_algorithms=r.get('disabled_algorithms'))
 
         if r.get('php_baseurl'):
             remote_fs = PHPSFTPFs(client, r['dir'], r['php_baseurl'])

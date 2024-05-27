@@ -186,7 +186,7 @@ def _ssh_get_host_keys(hostname, port):
     hostkeys = {}
 
     def _add_key(keytype, keydata):
-        keybytes = paramiko.py3compat.decodebytes(keydata.encode('ascii'))
+        keybytes = base64.b64decode(keydata.encode('ascii'))
         if keytype == 'ssh-rsa':
             key = paramiko.rsakey.RSAKey(data=keybytes)
         elif keytype == 'ssh-dss':
